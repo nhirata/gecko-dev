@@ -173,6 +173,7 @@ static int64_t DurationToUsecs(TimeDuration aDuration) {
 
 static const uint32_t MIN_VIDEO_QUEUE_SIZE = 3;
 static const uint32_t MAX_VIDEO_QUEUE_SIZE = 10;
+static const uint32_t SCARCE_VIDEO_QUEUE_SIZE = 1;
 
 static uint32_t sVideoQueueDefaultSize = MAX_VIDEO_QUEUE_SIZE;
 static uint32_t sVideoQueueHWAccelSize = MIN_VIDEO_QUEUE_SIZE;
@@ -1997,6 +1998,7 @@ MediaDecoderStateMachine::EnsureVideoDecodeTaskQueued()
 
   bool skipToNextKeyFrame = NeedToSkipToNextKeyframe();
   int64_t currentTime = mState == DECODER_STATE_SEEKING ? 0 : GetMediaTime();
+  bool forceDecodeAhead = static_cast<uint32_t>(VideoQueue().GetSize()) <= GetScarceVideoFrames();
 
   // Time the video decode, so that if it's slow, we can increase our low
   // audio threshold to reduce the chance of an audio underrun while we're
@@ -2009,7 +2011,7 @@ MediaDecoderStateMachine::EnsureVideoDecodeTaskQueued()
 
   mVideoDataRequest.Begin(ProxyMediaCall(DecodeTaskQueue(), mReader.get(), __func__,
                                          &MediaDecoderReader::RequestVideoData,
-                                         skipToNextKeyFrame, currentTime)
+                                         skipToNextKeyFrame, currentTime, forceDecodeAhead)
     ->Then(TaskQueue(), __func__, this,
            &MediaDecoderStateMachine::OnVideoDecoded,
            &MediaDecoderStateMachine::OnVideoNotDecoded));
@@ -2293,7 +2295,7 @@ MediaDecoderStateMachine::DecodeFirstFrame()
       mVideoDecodeStartTime = TimeStamp::Now();
       mVideoDataRequest.Begin(ProxyMediaCall(DecodeTaskQueue(), mReader.get(),
                                              __func__, &MediaDecoderReader::RequestVideoData, false,
-                                             int64_t(0))
+                                             int64_t(0), false)
         ->Then(TaskQueue(), __func__, this,
                &MediaDecoderStateMachine::OnVideoDecoded,
                &MediaDecoderStateMachine::OnVideoNotDecoded));
@@ -3425,6 +3427,13 @@ uint32_t MediaDecoderStateMachine::GetAmpleVideoFrames() const
   return (mReader->IsAsync() && mReader->VideoIsHardwareAccelerated())
     ? std::max<uint32_t>(sVideoQueueHWAccelSize, MIN_VIDEO_QUEUE_SIZE)
     : std::max<uint32_t>(sVideoQueueDefaultSize, MIN_VIDEO_QUEUE_SIZE);
+}
+
+uint32_t MediaDecoderStateMachine::GetScarceVideoFrames() const
+{
+  MOZ_ASSERT(OnTaskQueue());
+  AssertCurrentThreadInMonitor();
+  return SCARCE_VIDEO_QUEUE_SIZE;
 }
 
 DecodedStreamData* MediaDecoderStateMachine::GetDecodedStream() const

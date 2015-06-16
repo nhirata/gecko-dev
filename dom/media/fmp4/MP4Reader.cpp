@@ -609,7 +609,8 @@ MP4Reader::ShouldSkip(bool aSkipToNextKeyframe, int64_t aTimeThreshold)
 
 nsRefPtr<MediaDecoderReader::VideoDataPromise>
 MP4Reader::RequestVideoData(bool aSkipToNextKeyframe,
-                            int64_t aTimeThreshold)
+                            int64_t aTimeThreshold,
+                            bool aForceDecodeAhead)
 {
   MOZ_ASSERT(OnTaskQueue());
   VLOG("skip=%d time=%lld", aSkipToNextKeyframe, aTimeThreshold);
@@ -627,6 +628,7 @@ MP4Reader::RequestVideoData(bool aSkipToNextKeyframe,
   MOZ_ASSERT(HasVideo() && mPlatform && mVideo.mDecoder);
 
   bool eos = false;
+  mVideo.mForceDecodeAhead = aForceDecodeAhead;
   if (ShouldSkip(aSkipToNextKeyframe, aTimeThreshold)) {
     uint32_t parsed = 0;
     eos = !SkipVideoDemuxToNextKeyFrame(aTimeThreshold, parsed);
@@ -698,9 +700,10 @@ MP4Reader::NeedInput(DecoderData& aDecoder)
   return
     !aDecoder.mError &&
     !aDecoder.mDemuxEOS &&
-    aDecoder.HasPromise() &&
+    (aDecoder.HasPromise() || aDecoder.mForceDecodeAhead) &&
     aDecoder.mOutput.IsEmpty() &&
     (aDecoder.mInputExhausted ||
+     aDecoder.mForceDecodeAhead ||
      aDecoder.mNumSamplesInput - aDecoder.mNumSamplesOutput < aDecoder.mDecodeAhead);
 }
 
@@ -972,6 +975,7 @@ MP4Reader::Flush(TrackType aTrack)
   data.mDecoder->Flush();
   {
     MonitorAutoLock mon(data.mMonitor);
+    data.mForceDecodeAhead = false;
     data.mIsFlushing = false;
     data.mDrainComplete = false;
     data.mOutput.Clear();

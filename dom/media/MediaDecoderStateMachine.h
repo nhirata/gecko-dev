@@ -1003,6 +1003,11 @@ protected:
   // Must hold monitor.
   uint32_t GetAmpleVideoFrames() const;
 
+  // If we have less than or equal to this number of decoded video frames
+  // waiting in the video queue, we will try to decode more eagerly.
+  // Must hold monitor.
+  uint32_t GetScarceVideoFrames() const;
+
   // Low audio threshold. If we've decoded less than this much audio we
   // consider our audio decode "behind", and we may skip video decoding
   // in order to allow our audio decoding to catch up. We favour audio

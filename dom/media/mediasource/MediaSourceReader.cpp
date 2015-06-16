@@ -45,6 +45,7 @@ MediaSourceReader::MediaSourceReader(MediaSourceDecoder* aDecoder)
   : MediaDecoderReader(aDecoder)
   , mLastAudioTime(0)
   , mLastVideoTime(0)
+  , mForceVideoDecodeAhead(false)
   , mPendingSeekTime(-1)
   , mWaitingForSeekData(false)
   , mSeekToEnd(false)
@@ -304,7 +305,9 @@ MediaSourceReader::OnAudioNotDecoded(NotDecodedReason aReason)
 }
 
 nsRefPtr<MediaDecoderReader::VideoDataPromise>
-MediaSourceReader::RequestVideoData(bool aSkipToNextKeyframe, int64_t aTimeThreshold)
+MediaSourceReader::RequestVideoData(bool aSkipToNextKeyframe,
+                                    int64_t aTimeThreshold,
+                                    bool aForceDecodeAhead)
 {
   MOZ_ASSERT(OnTaskQueue());
   MOZ_DIAGNOSTIC_ASSERT(mSeekPromise.IsEmpty(), "No sample requests allowed while seeking");
@@ -328,6 +331,7 @@ MediaSourceReader::RequestVideoData(bool aSkipToNextKeyframe, int64_t aTimeThres
     return p;
   }
   MOZ_DIAGNOSTIC_ASSERT(!mVideoSeekRequest.Exists());
+  mForceVideoDecodeAhead = aForceDecodeAhead;
 
   SwitchSourceResult ret = SwitchVideoSource(&mLastVideoTime);
   switch (ret) {
@@ -360,7 +364,9 @@ MediaSourceReader::RequestVideoData(bool aSkipToNextKeyframe, int64_t aTimeThres
 void
 MediaSourceReader::DoVideoRequest()
 {
-  mVideoRequest.Begin(GetVideoReader()->RequestVideoData(mDropVideoBeforeThreshold, GetReaderVideoTime(mTimeThreshold))
+  mVideoRequest.Begin(GetVideoReader()->RequestVideoData(mDropVideoBeforeThreshold,
+                                                         GetReaderVideoTime(mTimeThreshold),
+                                                         mForceVideoDecodeAhead)
                       ->Then(TaskQueue(), __func__, this,
                              &MediaSourceReader::OnVideoDecoded,
                              &MediaSourceReader::OnVideoNotDecoded));
@@ -877,6 +883,9 @@ MediaSourceReader::ResetDecode()
   // Reset miscellaneous seeking state.
   mWaitingForSeekData = false;
   mPendingSeekTime = -1;
+
+  // Reset force video decode ahead.
+  mForceVideoDecodeAhead = false;
 
   // Reset all the readers.
   if (GetAudioReader()) {
