@@ -221,7 +221,10 @@ GonkGPSGeolocationProvider::RequestUtcTimeCallback()
 void
 GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
 {
+  MOZ_ASSERT(!NS_IsMainThread());
   MOZ_ASSERT(status);
+
+  nsContentUtils::LogMessageToConsole("geo: AGPSStatusCallback IN: status=%p\n", status);
 
   class AGPSStatusEvent : public nsRunnable {
   public:
@@ -229,9 +232,14 @@ GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
       : mStatus(aStatus)
     {}
     NS_IMETHOD Run() {
+      MOZ_ASSERT(NS_IsMainThread());
+
+      nsContentUtils::LogMessageToConsole("geo: AGPSStatusEvent IN\n");
+
       nsRefPtr<GonkGPSGeolocationProvider> provider =
         GonkGPSGeolocationProvider::GetSingleton();
 
+      nsContentUtils::LogMessageToConsole("geo: AGPSStatusEvent IN mStatus=%d\n", mStatus);
       switch (mStatus) {
         case GPS_REQUEST_AGPS_DATA_CONN:
           provider->RequestDataConnection();
@@ -246,6 +254,7 @@ GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
     AGpsStatusValue mStatus;
   };
 
+  nsContentUtils::LogMessageToConsole("geo: AGPSStatusCallback dispatch: status=%p\n", status);
   NS_DispatchToMainThread(new AGPSStatusEvent(status->status));
 }
 
@@ -690,6 +699,8 @@ GonkGPSGeolocationProvider::Init()
   mAGpsInterface =
     static_cast<const AGpsInterface*>(mGpsInterface->get_extension(AGPS_INTERFACE));
   if (mAGpsInterface) {
+    nsContentUtils::LogMessageToConsole("geo: mAGPSCallbacks.status_cb=%p\n", mAGPSCallbacks.status_cb);
+    nsContentUtils::LogMessageToConsole("geo: mAGpsInterface->init(&mAGPSCallbacks) ... \n");
     mAGpsInterface->init(&mAGPSCallbacks);
   }
 
