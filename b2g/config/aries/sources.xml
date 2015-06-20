@@ -143,7 +143,7 @@
   <project name="platform/hardware/qcom/camera" path="hardware/qcom/camera" revision="2a1ded216a91bf62a72b1640cf01ab4998f37028"/>
   <!-- project name="platform/hardware/qcom/display" path="hardware/qcom/display" revision="a74adcf8d88320d936daa8d20ce88ca0107fb916"/ -->
   <project path="hardware/qcom/display" name="display" remote="nhirata" branch="dogfood" revision="f26e7f50c1fe651c6029ae668445e4eae4b0f003"/>
-  <!-- project name="platform/hardware/qcom/gps" path="hardware/qcom/gps" revision="09c83aa1ae7dfd9962c748c258c5b8ab3cc3d259"/ -->
+  <!-- project name="platform/hardware/qcom/gps" path="hardware/qcom/gps" revision="956f0deccb0abd97e54ecaa4edb5b62bbe21b09c"/ -->
   <project name="gps" path="hardware/qcom/gps" remote="nhirata" branch="dogfood" revision="0fe69fd84244636a5259a1f1c2a015e7211d6f9a"/> 
   <project name="platform/hardware/qcom/media" path="hardware/qcom/media" revision="a558dc844bf5144fc38603fd8f4df8d9557052a5"/>
   <project name="platform/hardware/qcom/wlan" path="hardware/qcom/wlan" revision="57ee1320ed7b4a1a1274d8f3f6c177cd6b9becb2"/>
