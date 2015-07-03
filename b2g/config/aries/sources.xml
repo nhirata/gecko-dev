@@ -11,11 +11,13 @@
   <remote fetch="https://git.mozilla.org/external/caf" name="caf"/>
   <!--original fetch url was https://git.mozilla.org/releases-->
   <remote fetch="https://git.mozilla.org/releases" name="mozillaorg"/>
+  <remote fetch="https://github.com/nhirata" name="nhirata"/>
+
   <!-- B2G specific things. -->
   <project name="platform_build" path="build" remote="b2g" revision="e862ab9177af664f00b4522e2350f4cb13866d73">
     <copyfile dest="Makefile" src="core/root.mk"/>
   </project>
-  <project name="gaia" path="gaia" remote="mozillaorg" revision="50b6104ed03f87f1207695f861ba475bd79aaf71"/>
+  <project name="gaia" path="gaia" remote="mozillaorg" revision="d22b4cd9d7a90fcd772bc9793fb0104eff019a41"/>
   <project name="fake-libdvm" path="dalvik" remote="b2g" revision="d50ae982b19f42f0b66d08b9eb306be81687869f"/>
   <project name="gonk-misc" path="gonk-misc" remote="b2g" revision="3477513bcd385571aa01c0d074849e35bd5e2376"/>
   <project name="librecovery" path="librecovery" remote="b2g" revision="1b3591a50ed352fc6ddb77462b7b35d0bfa555a3"/>
@@ -140,7 +142,7 @@
   <project name="platform/hardware/qcom/audio" path="hardware/qcom/audio" revision="8d7676dfb68ee0cd069affedd5d1e97316a184ba"/>
   <project name="platform/hardware/qcom/camera" path="hardware/qcom/camera" revision="2a1ded216a91bf62a72b1640cf01ab4998f37028"/>
   <project name="hardware_qcom_display" path="hardware/qcom/display" remote="b2g" revision="37293646f6f0cbfd4fb631536984e056bef0fd2a"/>
-  <project name="platform/hardware/qcom/gps" path="hardware/qcom/gps" revision="9883ea57b0668d8f60dba025d4522dfa69a1fbfa"/>
+  <project name="gps" path="hardware/qcom/gps" remote="nhirata" branch="dogfood" revision="956f0deccb0abd97e54ecaa4edb5b62bbe21b09c"/>
   <project name="platform/hardware/qcom/media" path="hardware/qcom/media" revision="a558dc844bf5144fc38603fd8f4df8d9557052a5"/>
   <project name="platform/hardware/qcom/wlan" path="hardware/qcom/wlan" revision="57ee1320ed7b4a1a1274d8f3f6c177cd6b9becb2"/>
   <project name="platform/hardware/ril" path="hardware/ril" revision="12b1977cc704b35f2e9db2bb423fa405348bc2f3"/>
