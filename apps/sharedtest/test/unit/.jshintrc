@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../.jshintrc",
+  "predef": [
+    "assert",
+    "require",
+    "requireApp",
+    "sinon"
+  ],
+  "mocha": true
+}

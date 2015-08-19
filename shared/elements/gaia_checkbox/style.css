@@ -1,0 +1,72 @@
+gaia-checkbox {
+  display: inline-block;
+  width: 100%;
+}
+
+#checkbox {
+  display: inline-block;
+  vertical-align: middle;
+  width: 100%;
+  position: relative;
+  background: none;
+}
+
+#checkbox span {
+  font-size: 1.9rem;
+  font-weight: normal;
+  color: var(--label-color);
+  line-height: 3rem;
+  box-sizing: border-box;
+  display: block;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  width: 100%;
+  -moz-padding-end: 2.2rem;
+  /* Override inheriting nowrap from legacy lists building blocks. */
+  white-space: normal;
+}
+
+#checkbox:not(.invisible) span:after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  margin: -1.2rem 0 0 -1.2rem;
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+#checkbox[dir="rtl"] span:after {
+  left: 1.2rem;
+  right: unset;
+}
+
+#checkbox.inline:not([dir="rtl"]) span:after {
+  left: 1.2rem;
+  right: unset;
+  margin: -1.2rem 0 0 -1.2rem;
+}
+
+#checkbox.inline[dir="rtl"] span:after {
+  right: 0;
+  left: unset;
+  margin: -1.2rem 0 0 1.2rem;
+}
+
+#checkbox.inline span {
+  -moz-padding-start: 3rem;
+  -moz-padding-end: 0;
+}
+
+#checkbox:not(.invisible) span:after {
+  background: url(images/default.png) no-repeat center top / 2.2rem auto;
+}
+
+#checkbox.checked span:after {
+  background-position: center bottom;
+}
+
+/* 'Dangerous' checkboxes */
+#checkbox.danger span:after {
+  background-image: url(images/danger.png);
+}
