@@ -202,6 +202,7 @@ pref("privacy.item.syncAccount", true);
 pref("geo.provider.use_mls", false);
 pref("geo.cell.scan", true);
 pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
+pref("geo.gpsxtra.uri", "http://xtra1.gpsonextra.net/xtra.bin");
 
 // enable geo
 pref("geo.enabled", true);

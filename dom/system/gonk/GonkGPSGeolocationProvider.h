@@ -21,11 +21,13 @@
 #include "nsCOMPtr.h"
 #include "nsIGeolocationProvider.h"
 #include "nsIObserver.h"
+#include "nsIDOMEventListener.h"
 #include "nsIDOMGeoPosition.h"
 #ifdef MOZ_B2G_RIL
 #include "nsIRadioInterfaceLayer.h"
 #endif
 #include "nsISettingsService.h"
+#include "nsIXMLHttpRequest.h"
 
 class nsIThread;
 
@@ -38,12 +40,14 @@ class nsIThread;
 class GonkGPSGeolocationProvider : public nsIGeolocationProvider
                                  , public nsIObserver
                                  , public nsISettingsServiceCallback
+                                 , public nsIDOMEventListener
 {
 public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIGEOLOCATIONPROVIDER
   NS_DECL_NSIOBSERVER
   NS_DECL_NSISETTINGSSERVICECALLBACK
+  NS_DECL_NSIDOMEVENTLISTENER // nsIDOMEventListener interface
 
   static already_AddRefed<GonkGPSGeolocationProvider> GetSingleton();
 
@@ -64,6 +68,7 @@ private:
   static void ReleaseWakelockCallback();
   static pthread_t CreateThreadCallback(const char* name, void (*start)(void*), void* arg);
   static void RequestUtcTimeCallback();
+  static void GPSXtraDownloadCallback();
 #ifdef MOZ_B2G_RIL
   static void AGPSStatusCallback(AGpsStatus* status);
   static void AGPSRILSetIDCallback(uint32_t flags);
@@ -71,6 +76,7 @@ private:
 #endif
 
   static GpsCallbacks mCallbacks;
+  static GpsXtraCallbacks mGpsXtraCallbacks;
 #ifdef MOZ_B2G_RIL
   static AGpsCallbacks mAGPSCallbacks;
   static AGpsRilCallbacks mAGPSRILCallbacks;
@@ -79,7 +85,9 @@ private:
   void Init();
   void StartGPS();
   void ShutdownGPS();
+  nsresult DownloadGpsXtra();
   void InjectLocation(double latitude, double longitude, float accuracy);
+  void InjectTime(GpsUtcTime time, int64_t timeReference, int uncertainty);
   void RequestSettingValue(const char* aKey);
 #ifdef MOZ_B2G_RIL
   void UpdateRadioInterface();
@@ -115,6 +123,7 @@ private:
   bool mSupportsTimeInjection;
 
   const GpsInterface* mGpsInterface;
+  const GpsXtraInterface* mGpsXtraInterface;
 #ifdef MOZ_B2G_RIL
   const AGpsInterface* mAGpsInterface;
   const AGpsRilInterface* mAGpsRilInterface;
@@ -124,6 +133,7 @@ private:
   nsCOMPtr<nsIThread> mInitThread;
   nsCOMPtr<nsIGeolocationProvider> mNetworkLocationProvider;
   nsCOMPtr<nsIDOMGeoPosition> mLastGPSPosition;
+  nsCOMPtr<nsIXMLHttpRequest> mXhr;
 
   class NetworkLocationUpdate : public nsIGeolocationUpdate
   {
