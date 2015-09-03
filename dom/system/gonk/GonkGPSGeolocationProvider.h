@@ -21,11 +21,13 @@
 #include "nsCOMPtr.h"
 #include "nsIGeolocationProvider.h"
 #include "nsIObserver.h"
+#include "nsIDOMEventListener.h"
 #include "nsIDOMGeoPosition.h"
 #ifdef MOZ_B2G_RIL
 #include "nsIRadioInterfaceLayer.h"
 #endif
 #include "nsISettingsService.h"
+#include "nsIXMLHttpRequest.h"
 
 class nsIThread;
 
@@ -38,12 +40,14 @@ class nsIThread;
 class GonkGPSGeolocationProvider : public nsIGeolocationProvider
                                  , public nsIObserver
                                  , public nsISettingsServiceCallback
+                                 , public nsIDOMEventListener
 {
 public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIGEOLOCATIONPROVIDER
   NS_DECL_NSIOBSERVER
   NS_DECL_NSISETTINGSSERVICECALLBACK
+  NS_DECL_NSIDOMEVENTLISTENER // nsIDOMEventListener interface
 
   static already_AddRefed<GonkGPSGeolocationProvider> GetSingleton();
 
@@ -66,6 +70,7 @@ private:
   static void RequestUtcTimeCallback();
 #ifdef MOZ_B2G_RIL
   static void AGPSStatusCallback(AGpsStatus* status);
+  static void GPSXtraDownloadCallback(void);
   static void AGPSRILSetIDCallback(uint32_t flags);
   static void AGPSRILRefLocCallback(uint32_t flags);
 #endif
@@ -73,13 +78,17 @@ private:
   static GpsCallbacks mCallbacks;
 #ifdef MOZ_B2G_RIL
   static AGpsCallbacks mAGPSCallbacks;
+  static GpsXtraCallbacks mGpsXtraCallbacks;
   static AGpsRilCallbacks mAGPSRILCallbacks;
 #endif
 
   void Init();
   void StartGPS();
   void ShutdownGPS();
+  nsresult DownloadGpsXtra();
   void InjectLocation(double latitude, double longitude, float accuracy);
+  void InjectTime(GpsUtcTime time, int64_t timeReference, int uncertainty);
+  void InjectXtraData(char* data, int length);
   void RequestSettingValue(const char* aKey);
 #ifdef MOZ_B2G_RIL
   void UpdateRadioInterface();
@@ -117,6 +126,7 @@ private:
   const GpsInterface* mGpsInterface;
 #ifdef MOZ_B2G_RIL
   const AGpsInterface* mAGpsInterface;
+  const GpsXtraInterface* mGpsXtraInterface;
   const AGpsRilInterface* mAGpsRilInterface;
   nsCOMPtr<nsIRadioInterface> mRadioInterface;
 #endif
@@ -124,6 +134,7 @@ private:
   nsCOMPtr<nsIThread> mInitThread;
   nsCOMPtr<nsIGeolocationProvider> mNetworkLocationProvider;
   nsCOMPtr<nsIDOMGeoPosition> mLastGPSPosition;
+  nsCOMPtr<nsIXMLHttpRequest> mXhr;
 
   class NetworkLocationUpdate : public nsIGeolocationUpdate
   {

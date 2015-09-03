@@ -27,6 +27,9 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsINetworkInterface.h"
 #include "nsIObserverService.h"
+#include "nsIPrefBranch.h"
+#include "nsIPrincipal.h"
+#include "nsIScriptSecurityManager.h"
 #include "nsJSUtils.h"
 #include "nsPrintfCString.h"
 #include "nsServiceManagerUtils.h"
@@ -57,7 +60,7 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 static const int kDefaultPeriod = 1000; // ms
-static bool gDebug_isLoggingEnabled = false;
+static bool gDebug_isLoggingEnabled = true;
 static bool gDebug_isGPSLocationIgnored = false;
 #ifdef MOZ_B2G_RIL
 static const char* kNetworkConnStateChangedTopic = "network-connection-state-changed";
@@ -80,11 +83,13 @@ NS_IMPL_ISUPPORTS(GonkGPSGeolocationProvider,
                   nsISettingsServiceCallback)
 
 /* static */ GonkGPSGeolocationProvider* GonkGPSGeolocationProvider::sSingleton = nullptr;
-GpsCallbacks GonkGPSGeolocationProvider::mCallbacks;
+/* static */ GpsCallbacks GonkGPSGeolocationProvider::mCallbacks;
+/* static */ GpsXtraCallbacks GonkGPSGeolocationProvider::mGpsXtraCallbacks;
 
 #ifdef MOZ_B2G_RIL
-AGpsCallbacks GonkGPSGeolocationProvider::mAGPSCallbacks;
-AGpsRilCallbacks GonkGPSGeolocationProvider::mAGPSRILCallbacks;
+/* static */ AGpsCallbacks GonkGPSGeolocationProvider::mAGPSCallbacks;
+GpsXtraCallbacks GonkGPSGeolocationProvider::mGPSXtraCallbacks;
+/* static */ AGpsRilCallbacks GonkGPSGeolocationProvider::mAGPSRILCallbacks;
 #endif // MOZ_B2G_RIL
 
 void
@@ -147,6 +152,7 @@ GonkGPSGeolocationProvider::LocationCallback(GpsLocation* location)
 void
 GonkGPSGeolocationProvider::StatusCallback(GpsStatus* status)
 {
+  nsContentUtils::LogMessageToConsole("geo: SvStatusCallback\n");
   if (gDebug_isLoggingEnabled) {
     switch (status->status) {
       case GPS_STATUS_NONE:
@@ -174,6 +180,7 @@ GonkGPSGeolocationProvider::StatusCallback(GpsStatus* status)
 void
 GonkGPSGeolocationProvider::SvStatusCallback(GpsSvStatus* sv_info)
 {
+  nsContentUtils::LogMessageToConsole("geo: SvStatusCallback\n");
   if (gDebug_isLoggingEnabled) {
     static int numSvs = 0;
     static uint32_t numEphemeris = 0;
@@ -224,6 +231,7 @@ GonkGPSGeolocationProvider::SvStatusCallback(GpsSvStatus* sv_info)
 void
 GonkGPSGeolocationProvider::NmeaCallback(GpsUtcTime timestamp, const char* nmea, int length)
 {
+  nsContentUtils::LogMessageToConsole("geo: NmeaCallback\n");
   if (gDebug_isLoggingEnabled) {
     nsContentUtils::LogMessageToConsole("geo: NMEA: timestamp:\t%lld, length: %d, %s",
                                         timestamp, length, nmea);
@@ -251,23 +259,32 @@ GonkGPSGeolocationProvider::SetCapabilitiesCallback(uint32_t capabilities)
 #ifdef GPS_CAPABILITY_ON_DEMAND_TIME
       provider->mSupportsTimeInjection = mCapabilities & GPS_CAPABILITY_ON_DEMAND_TIME;
 #endif
+
+      nsContentUtils::LogMessageToConsole("geo: UpdateCapabilitiesEvent provider->mSupportsScheduling=%d\n", provider->mSupportsScheduling);
+      nsContentUtils::LogMessageToConsole("geo: UpdateCapabilitiesEvent provider->mSupportsMSB=%d\n", provider->mSupportsMSB);
+      nsContentUtils::LogMessageToConsole("geo: UpdateCapabilitiesEvent provider->mSupportsMSA=%d\n", provider->mSupportsMSA);
+      nsContentUtils::LogMessageToConsole("geo: UpdateCapabilitiesEvent provider->mSupportsSingleShot=%d\n", provider->mSupportsSingleShot);
+      nsContentUtils::LogMessageToConsole("geo: UpdateCapabilitiesEvent provider->mSupportsTimeInjection=%d\n", provider->mSupportsTimeInjection);
       return NS_OK;
     }
   private:
     uint32_t mCapabilities;
   };
 
+  nsContentUtils::LogMessageToConsole("geo: SetCapabilitiesCallback capabilities=%u\n", capabilities);
   NS_DispatchToMainThread(new UpdateCapabilitiesEvent(capabilities));
 }
 
 void
 GonkGPSGeolocationProvider::AcquireWakelockCallback()
 {
+  nsContentUtils::LogMessageToConsole("geo: AcquireWakelockCallback\n");
 }
 
 void
 GonkGPSGeolocationProvider::ReleaseWakelockCallback()
 {
+  nsContentUtils::LogMessageToConsole("geo: ReleaseWakelockCallback\n");
 }
 
 typedef void *(*pthread_func)(void *);
@@ -277,15 +294,21 @@ typedef void *(*pthread_func)(void *);
 pthread_t
 GonkGPSGeolocationProvider::CreateThreadCallback(const char* name, void (*start)(void *), void* arg)
 {
+  nsContentUtils::LogMessageToConsole("geo: CreateThreadCallback IN for name=%s\n", name);
+
   pthread_t thread;
   pthread_attr_t attr;
 
   pthread_attr_init(&attr);
 
+  nsContentUtils::LogMessageToConsole("geo: CreateThreadCallback pthread_create for name=%s\n", name);
+
   /* Unfortunately pthread_create and the callback disagreed on what
    * start function should return.
    */
   pthread_create(&thread, &attr, reinterpret_cast<pthread_func>(start), arg);
+
+  nsContentUtils::LogMessageToConsole("geo: CreateThreadCallback return for name=%s\n", name);
 
   return thread;
 }
@@ -293,13 +316,44 @@ GonkGPSGeolocationProvider::CreateThreadCallback(const char* name, void (*start)
 void
 GonkGPSGeolocationProvider::RequestUtcTimeCallback()
 {
+  nsContentUtils::LogMessageToConsole("geo: RequestUtcTimeCallback\n");
+  if (gDebug_isLoggingEnabled) {
+    nsContentUtils::LogMessageToConsole(
+      "geo: 'GmCallbacks.request_utc_time_cb ' is called\n");
+  }
+
+  nsRefPtr<GonkGPSGeolocationProvider> provider =
+    GonkGPSGeolocationProvider::GetSingleton();
+
+  struct timespec startTime;
+  struct timespec endTime;
+
+  // Preventing context switch before setting system clock
+  sched_yield();
+  clock_gettime(CLOCK_MONOTONIC, &startTime);
+  clock_gettime(CLOCK_MONOTONIC, &endTime);
+  uint64_t startDuration = uint64_t(startTime.tv_sec) * 1000LL
+    + (startTime.tv_nsec / 1000000LL);
+  uint64_t endDuration = uint64_t(endTime.tv_sec) * 1000LL
+    + (endTime.tv_nsec / 1000000LL);
+  int timeRes = endDuration - startDuration;
+
+  struct timespec t;
+  // Preventing context switch before setting system clock
+  sched_yield();
+  clock_gettime(CLOCK_REALTIME, &t);
+  int64_t timeInMs = (t.tv_sec * 1000LL) + (t.tv_nsec / 1000000LL);
+  provider->InjectTime(timeInMs, 0, timeRes);
 }
 
 #ifdef MOZ_B2G_RIL
 void
 GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
 {
+  MOZ_ASSERT(!NS_IsMainThread());
   MOZ_ASSERT(status);
+
+  nsContentUtils::LogMessageToConsole("geo: AGPSStatusCallback IN: status=%p\n", status);
 
   class AGPSStatusEvent : public nsRunnable {
   public:
@@ -307,9 +361,14 @@ GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
       : mStatus(aStatus)
     {}
     NS_IMETHOD Run() {
+      MOZ_ASSERT(NS_IsMainThread());
+
+      nsContentUtils::LogMessageToConsole("geo: AGPSStatusEvent IN\n");
+
       nsRefPtr<GonkGPSGeolocationProvider> provider =
         GonkGPSGeolocationProvider::GetSingleton();
 
+      nsContentUtils::LogMessageToConsole("geo: AGPSStatusEvent IN mStatus=%d\n", mStatus);
       switch (mStatus) {
         case GPS_REQUEST_AGPS_DATA_CONN:
           provider->RequestDataConnection();
@@ -324,7 +383,94 @@ GonkGPSGeolocationProvider::AGPSStatusCallback(AGpsStatus* status)
     AGpsStatusValue mStatus;
   };
 
+  nsContentUtils::LogMessageToConsole("geo: AGPSStatusCallback dispatch: status=%p\n", status);
   NS_DispatchToMainThread(new AGPSStatusEvent(status->status));
+}
+
+nsresult
+GonkGPSGeolocationProvider::DownloadGpsXtra()
+{
+  if (mXhr != nullptr) {
+    mXhr->SlowAbort();
+    mXhr = nullptr;
+  }
+
+  nsresult rv;
+  mXhr = do_CreateInstance(NS_XMLHTTPREQUEST_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIScriptSecurityManager> secman =
+    do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIPrincipal> systemPrincipal;
+  rv = secman->GetSystemPrincipal(getter_AddRefs(systemPrincipal));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = mXhr->Init(systemPrincipal, nullptr, nullptr, nullptr, nullptr);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCString url;
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+  if (prefs) {
+    rv = prefs->GetCharPref("geo.gpsxtra.uri", getter_Copies(url));
+    NS_ENSURE_SUCCESS(rv, rv);
+  } else {
+    return NS_ERROR_FAILURE;
+  }
+
+  NS_NAMED_LITERAL_CSTRING(getString, "GET");
+  rv = mXhr->Open(getString, url, false, EmptyString(), EmptyString());
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<mozilla::dom::EventTarget> target(do_QueryInterface(mXhr));
+  rv = target->AddEventListener(NS_LITERAL_STRING("load"), this, false);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = target->AddEventListener(NS_LITERAL_STRING("error"), this, false);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  mXhr->SetMozBackgroundRequest(true);
+
+  rv = mXhr->Send(nullptr);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return NS_OK;
+}
+
+void
+GonkGPSGeolocationProvider::GPSXtraDownloadCallback()
+{
+  MOZ_ASSERT(!NS_IsMainThread());
+
+  nsContentUtils::LogMessageToConsole("geo: GPSXtraDownloadCallback IN\n");
+
+  if (gDebug_isLoggingEnabled) {
+    nsContentUtils::LogMessageToConsole(
+      "geo: 'GpsXtraCallbacks.download_request_cb' is called\n");
+  }
+
+  class GpsXtraDownloadEvent : public nsRunnable {
+  public:
+    GpsXtraDownloadEvent()
+    {
+    }
+
+    NS_IMETHOD Run() {
+      nsContentUtils::LogMessageToConsole("geo: XtraDownloadEvent IN\n");
+      // Download GPS XTRA data. Once download is completed, inject it to HAL.
+      nsRefPtr<GonkGPSGeolocationProvider> provider =
+        GonkGPSGeolocationProvider::GetSingleton();
+      nsresult rv = provider->DownloadGpsXtra();
+      if(rv != NS_OK) {
+        NS_WARNING("Cannot send XHR to XTRA data server.");
+      }
+
+      return NS_OK;
+    }
+  };
+
+  NS_DispatchToMainThread(new GpsXtraDownloadEvent());
 }
 
 void
@@ -345,6 +491,7 @@ GonkGPSGeolocationProvider::AGPSRILSetIDCallback(uint32_t flags)
     uint32_t mFlags;
   };
 
+  nsContentUtils::LogMessageToConsole("geo: GPSXtraDownloadCallback dispatch\n");
   NS_DispatchToMainThread(new RequestSetIDEvent(flags));
 }
 
@@ -431,13 +578,18 @@ GonkGPSGeolocationProvider::GetGPSInterface()
 int32_t
 GonkGPSGeolocationProvider::GetDataConnectionState()
 {
+  nsContentUtils::LogMessageToConsole("geo: GetDataConnectionState()\n");
+
   if (!mRadioInterface) {
+    nsContentUtils::LogMessageToConsole("geo: GetDataConnectionState() !mRadioInterface\n");
     return nsINetworkInfo::NETWORK_STATE_UNKNOWN;
   }
 
   int32_t state;
   mRadioInterface->GetDataCallStateByType(
     nsINetworkInfo::NETWORK_TYPE_MOBILE_SUPL, &state);
+
+  nsContentUtils::LogMessageToConsole("geo: GetDataConnectionState() return state=%d\n", state);
   return state;
 }
 
@@ -447,6 +599,8 @@ GonkGPSGeolocationProvider::SetAGpsDataConn(nsAString& aApn)
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mAGpsInterface);
 
+  nsContentUtils::LogMessageToConsole("geo: SetAGpsDataConn: IN\n");
+
   bool hasUpdateNetworkAvailability = false;
   if (mAGpsRilInterface &&
       mAGpsRilInterface->size >= sizeof(AGpsRilInterface) &&
@@ -454,8 +608,11 @@ GonkGPSGeolocationProvider::SetAGpsDataConn(nsAString& aApn)
     hasUpdateNetworkAvailability = true;
   }
 
+  nsContentUtils::LogMessageToConsole("geo: SetAGpsDataConn: hasUpdateNetworkAvailability=%d\n", hasUpdateNetworkAvailability);
+
   int32_t connectionState = GetDataConnectionState();
   NS_ConvertUTF16toUTF8 apn(aApn);
+  nsContentUtils::LogMessageToConsole("geo: SetAGpsDataConn: apn=%s connectionState=%d\n", apn.get(), connectionState);
   if (connectionState == nsINetworkInfo::NETWORK_STATE_CONNECTED) {
     // The definition of availability is
     // 1. The device is connected to the home network
@@ -466,6 +623,7 @@ GonkGPSGeolocationProvider::SetAGpsDataConn(nsAString& aApn)
     if (hasUpdateNetworkAvailability) {
       mAGpsRilInterface->update_network_availability(true, apn.get());
     }
+  nsContentUtils::LogMessageToConsole("geo: SetAGpsDataConn: apn=%s data_conn_open\n", apn.get());
 #ifdef AGPS_HAVE_DUAL_APN
     mAGpsInterface->data_conn_open(AGPS_TYPE_SUPL,
                                    apn.get(),
@@ -474,6 +632,7 @@ GonkGPSGeolocationProvider::SetAGpsDataConn(nsAString& aApn)
     mAGpsInterface->data_conn_open(apn.get());
 #endif
   } else if (connectionState == nsINetworkInfo::NETWORK_STATE_DISCONNECTED) {
+  nsContentUtils::LogMessageToConsole("geo: SetAGpsDataConn: apn=%s data_conn_closed\n", apn.get());
     if (hasUpdateNetworkAvailability) {
       mAGpsRilInterface->update_network_availability(false, apn.get());
     }
@@ -725,6 +884,41 @@ GonkGPSGeolocationProvider::InjectLocation(double latitude,
 }
 
 void
+GonkGPSGeolocationProvider::InjectTime(GpsUtcTime time,
+                                       int64_t timeReference,
+                                       int uncertainty)
+{
+  if (gDebug_isLoggingEnabled) {
+    nsContentUtils::LogMessageToConsole("geo: injecting time (%ld, %ld) uncertainty: %d",
+                                        time, timeReference, uncertainty);
+  }
+
+  MOZ_ASSERT(NS_IsMainThread());
+  if (!mGpsInterface) {
+    return;
+  }
+
+  mGpsInterface->inject_time(time, timeReference, uncertainty);
+}
+
+void
+GonkGPSGeolocationProvider::InjectXtraData(char* data,
+                                           int length)
+{
+  if (gDebug_isLoggingEnabled) {
+    nsContentUtils::LogMessageToConsole("geo: injecting xtra data from %p, %d bytes",
+                                        data, length);
+  }
+
+  MOZ_ASSERT(NS_IsMainThread());
+  if (!mGpsXtraInterface) {
+    return;
+  }
+
+  mGpsXtraInterface->inject_xtra_data(data, length);
+}
+
+void
 GonkGPSGeolocationProvider::Init()
 {
   // Must not be main thread. Some GPS driver's first init takes very long.
@@ -754,6 +948,9 @@ GonkGPSGeolocationProvider::Init()
     mAGPSCallbacks.status_cb = AGPSStatusCallback;
     mAGPSCallbacks.create_thread_cb = CreateThreadCallback;
 
+    mGpsXtraCallbacks.download_request_cb = GPSXtraDownloadCallback;
+    mGpsXtraCallbacks.create_thread_cb = CreateThreadCallback;
+
     mAGPSRILCallbacks.request_setid = AGPSRILSetIDCallback;
     mAGPSRILCallbacks.request_refloc = AGPSRILRefLocCallback;
     mAGPSRILCallbacks.create_thread_cb = CreateThreadCallback;
@@ -764,11 +961,30 @@ GonkGPSGeolocationProvider::Init()
     return;
   }
 
+  mGpsXtraInterface = static_cast<const GpsXtraInterface*>(
+  mGpsInterface->get_extension(GPS_XTRA_INTERFACE));
+
+  if (mGpsXtraInterface) {
+    if (mGpsXtraInterface->init(&mGpsXtraCallbacks) != 0) {
+      mGpsXtraInterface = NULL;
+    }
+  }
+
 #ifdef MOZ_B2G_RIL
   mAGpsInterface =
     static_cast<const AGpsInterface*>(mGpsInterface->get_extension(AGPS_INTERFACE));
   if (mAGpsInterface) {
+    nsContentUtils::LogMessageToConsole("geo: mAGPSCallbacks.status_cb=%p\n", mAGPSCallbacks.status_cb);
+    nsContentUtils::LogMessageToConsole("geo: mAGpsInterface->init(&mAGPSCallbacks) ... \n");
     mAGpsInterface->init(&mAGPSCallbacks);
+  }
+
+  mGpsXtraInterface =
+    static_cast<const GpsXtraInterface*>(mGpsInterface->get_extension(GPS_XTRA_INTERFACE));
+  if (mGpsXtraInterface) {
+    nsContentUtils::LogMessageToConsole("geo: mGPSXtraCallbacks.download_request_cb=%p\n", mGPSXtraCallbacks.download_request_cb);
+    nsContentUtils::LogMessageToConsole("geo: mGpsXtraInterface->init(&mAGPSCallbacks) ... \n");
+    mGpsXtraInterface->init(&mGPSXtraCallbacks);
   }
 
   mAGpsRilInterface =
@@ -814,10 +1030,16 @@ GonkGPSGeolocationProvider::StartGPS()
   mGpsInterface->set_position_mode(positionMode,
                                    GPS_POSITION_RECURRENCE_PERIODIC,
                                    update, 0, 0);
+
 #if FLUSH_AIDE_DATA
   // Delete cached data
   mGpsInterface->delete_aiding_data(GPS_DELETE_ALL);
 #endif
+
+  if (mSupportsTimeInjection) {
+    InjectTime((PR_Now() / PR_USEC_PER_MSEC) - (2 * 3600), (PR_Now() / PR_USEC_PER_MSEC) - (86400 * 1000 * 10), 150);
+    GPSXtraDownloadCallback();
+  }
 
   mGpsInterface->start();
 }
@@ -828,6 +1050,8 @@ GonkGPSGeolocationProvider::SetupAGPS()
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mAGpsInterface);
+
+  nsContentUtils::LogMessageToConsole("geo: SetupAGPS\n");
 
   const nsAdoptingCString& suplServer = Preferences::GetCString("geo.gps.supl_server");
   int32_t suplPort = Preferences::GetInt("geo.gps.supl_port", -1);
@@ -847,8 +1071,12 @@ GonkGPSGeolocationProvider::SetupAGPS()
 void
 GonkGPSGeolocationProvider::UpdateRadioInterface()
 {
+  nsContentUtils::LogMessageToConsole("geo: UpdateRadioInterface()\n");
+
   nsCOMPtr<nsIRadioInterfaceLayer> ril = do_GetService("@mozilla.org/ril;1");
   NS_ENSURE_TRUE_VOID(ril);
+
+  nsContentUtils::LogMessageToConsole("geo: UpdateRadioInterface() request RIL %d\n", mRilDataServiceId);
   ril->GetRadioInterface(mRilDataServiceId, getter_AddRefs(mRadioInterface));
 }
 
@@ -1179,18 +1407,22 @@ GonkGPSGeolocationProvider::Observe(nsISupports* aSubject,
       return NS_OK;
     } else if (setting.mKey.EqualsASCII(kSettingDebugEnabled)) {
       nsContentUtils::LogMessageToConsole("geo: received mozsettings-changed: logging\n");
-      gDebug_isLoggingEnabled =
-        setting.mValue.isBoolean() ? setting.mValue.toBoolean() : false;
+      // gDebug_isLoggingEnabled =
+      //  setting.mValue.isBoolean() ? setting.mValue.toBoolean() : false;
       return NS_OK;
     }
 #ifdef MOZ_B2G_RIL
     else if (setting.mKey.EqualsASCII(kSettingRilDefaultServiceId)) {
+      nsContentUtils::LogMessageToConsole("geo: received ril service id pref\n");
+
       if (!setting.mValue.isNumber() ||
           !IsValidRilServiceId(setting.mValue.toNumber())) {
+        nsContentUtils::LogMessageToConsole("geo: received ril service id pref unexpected\n");
         return NS_ERROR_UNEXPECTED;
       }
 
       mRilDataServiceId = setting.mValue.toNumber();
+      nsContentUtils::LogMessageToConsole("geo: received ril service id pref: %d\n", mRilDataServiceId);
       UpdateRadioInterface();
       return NS_OK;
     }
@@ -1208,6 +1440,7 @@ GonkGPSGeolocationProvider::Handle(const nsAString& aName,
 {
 #ifdef MOZ_B2G_RIL
   if (aName.EqualsLiteral("ril.supl.apn")) {
+  nsContentUtils::LogMessageToConsole("geo: received ril.supl.apn\n");
     // When we get the APN, we attempt to call data_call_open of AGPS.
     if (aResult.isString()) {
       JSContext *cx = nsContentUtils::GetCurrentJSContext();
@@ -1216,25 +1449,34 @@ GonkGPSGeolocationProvider::Handle(const nsAString& aName,
       // NB: No need to enter a compartment to read the contents of a string.
       nsAutoJSString apn;
       if (!apn.init(cx, aResult.toString())) {
+        nsContentUtils::LogMessageToConsole("geo: apn failure\n");
         return NS_ERROR_FAILURE;
       }
       if (!apn.IsEmpty()) {
+        nsContentUtils::LogMessageToConsole("geo: using apn: %s\n", NS_ConvertUTF16toUTF8(apn).get());
         SetAGpsDataConn(apn);
+      } else {
+        nsContentUtils::LogMessageToConsole("geo: empty apn\n");
       }
     }
   } else if (aName.EqualsASCII(kSettingRilDefaultServiceId)) {
+    nsContentUtils::LogMessageToConsole("geo: received ril service id setting\n");
+
     uint32_t id = 0;
     JSContext *cx = nsContentUtils::GetCurrentJSContext();
     NS_ENSURE_TRUE(cx, NS_OK);
     if (!JS::ToUint32(cx, aResult, &id)) {
+      nsContentUtils::LogMessageToConsole("geo: received ril service id setting failure\n");
       return NS_ERROR_FAILURE;
     }
 
     if (!IsValidRilServiceId(id)) {
+      nsContentUtils::LogMessageToConsole("geo: received ril service id setting unexpected\n");
       return NS_ERROR_UNEXPECTED;
     }
 
     mRilDataServiceId = id;
+    nsContentUtils::LogMessageToConsole("geo: received ril service id setting: %d\n", mRilDataServiceId);
     UpdateRadioInterface();
 
     MOZ_ASSERT(!mObservingNetworkConnStateChange);
@@ -1256,5 +1498,52 @@ GonkGPSGeolocationProvider::Handle(const nsAString& aName,
 NS_IMETHODIMP
 GonkGPSGeolocationProvider::HandleError(const nsAString& aErrorMessage)
 {
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+GonkGPSGeolocationProvider::HandleEvent(nsIDOMEvent* aEvent)
+{
+  NS_PRECONDITION(aEvent, "aEvent null");
+
+  nsAutoString eventType;
+  aEvent->GetType(eventType);
+
+  if (eventType.EqualsLiteral("load")) {
+    NS_ASSERTION(mXhr, "request was not set");
+
+    nsCString statusString;
+    uint32_t xhrStatus;
+    nsresult rv;
+
+    rv = mXhr->GetStatus(&xhrStatus);
+    rv = mXhr->GetStatusText(statusString);
+
+    nsString resType;
+    rv = mXhr->GetResponseType(resType);
+
+    nsAutoString response;
+    rv = mXhr->GetResponseText(response);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    mXhr = nullptr;
+
+    nsCString xtraDataStream = NS_LossyConvertUTF16toASCII(response);
+
+    char *data;
+    xtraDataStream.GetMutableData(&data, xtraDataStream.Length(), fallible);
+
+    // Inject XTRA data to HAL
+    mGpsXtraInterface->inject_xtra_data(data, xtraDataStream.Length());
+
+    if (gDebug_isLoggingEnabled) {
+      nsContentUtils::LogMessageToConsole(
+        "geo: %d bypes XTRA data has been injected\n", xtraDataStream.Length());
+    }
+
+  } else if (eventType.EqualsLiteral("error")) {
+    NS_WARNING("Failed to download GPS Xtra data.");
+  }
+
   return NS_OK;
 }

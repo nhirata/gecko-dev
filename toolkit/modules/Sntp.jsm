@@ -11,7 +11,7 @@ this.EXPORTED_SYMBOLS = [
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 // Set to true to see debug messages.
-let DEBUG = false;
+let DEBUG = true;
 
 /**
  * Constructor of Sntp.
