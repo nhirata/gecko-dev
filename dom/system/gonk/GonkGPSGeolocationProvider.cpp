@@ -60,7 +60,7 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 static const int kDefaultPeriod = 1000; // ms
-static bool gDebug_isLoggingEnabled = false;
+static bool gDebug_isLoggingEnabled = true;
 static bool gDebug_isGPSLocationIgnored = false;
 #ifdef MOZ_B2G_RIL
 static const char* kNetworkConnStateChangedTopic = "network-connection-state-changed";
