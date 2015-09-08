@@ -61,7 +61,7 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 static const int kDefaultPeriod = 1000; // ms
-static bool gDebug_isLoggingEnabled = false;
+static bool gDebug_isLoggingEnabled = true;
 static bool gDebug_isGPSLocationIgnored = false;
 #ifdef MOZ_B2G_RIL
 static const char* kNetworkConnStateChangedTopic = "network-connection-state-changed";
@@ -761,6 +761,8 @@ GonkGPSGeolocationProvider::RequestDataConnection()
     return;
   }
 
+  nsContentUtils::LogMessageToConsole("Alphan: Request Data Connection");
+
   if (GetDataConnectionState() == nsINetworkInfo::NETWORK_STATE_CONNECTED) {
     // Connection is already established, we don't need to setup again.
     // We just get supl APN and make AGPS data connection state updated.
@@ -778,6 +780,8 @@ GonkGPSGeolocationProvider::ReleaseDataConnection()
   if (!mRadioInterface) {
     return;
   }
+
+  nsContentUtils::LogMessageToConsole("Alphan: Release Data Connection");
 
   mRadioInterface->DeactivateDataCallByType(nsINetworkInfo::NETWORK_TYPE_MOBILE_SUPL);
 }
@@ -820,6 +824,8 @@ GonkGPSGeolocationProvider::RequestSetID(uint32_t flags)
       }
     }
   }
+
+  nsContentUtils::LogMessageToConsole("Alphan: Request Set ID : %s", id);
 
   NS_ConvertUTF16toUTF8 idBytes(id);
   mAGpsRilInterface->set_set_id(type, idBytes.get());
@@ -1006,7 +1012,7 @@ GonkGPSGeolocationProvider::Init()
     mGpsXtraCallbacks.create_thread_cb = CreateThreadCallback;
 
 #ifdef MOZ_B2G_RIL
-    nsContentUtils::LogMessageToConsole("Alphan MOZ_B2G_RIL\n");
+    nsContentUtils::LogMessageToConsole("Alphan MOZ_B2G_RIL init\n");
     mAGPSCallbacks.status_cb = AGPSStatusCallback;
     mAGPSCallbacks.create_thread_cb = CreateThreadCallback;
 
