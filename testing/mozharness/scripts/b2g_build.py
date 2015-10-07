@@ -165,14 +165,22 @@ class B2GBuild(LocalesMixin, PurgeMixin,
         self.objdir = self.config.get("gecko_objdir",
                 os.path.join(dirs['work_dir'], 'objdir-gecko'))
         self.abs_dirs['abs_obj_dir'] = self.objdir
-        if self.config.get("update_type", "ota") == "fota":
-            self.make_updates_cmd = ['./build.sh', 'gecko-update-fota']
-            self.extra_update_attrs = 'isOsUpdate="true"'
-            self.isOSUpdate = True
-        else:
+
+        # Defaulting to OTA when non defined.
+        update_type = self.config.get("update_type", "ota")
+        if update_type == "ota":
             self.make_updates_cmd = ['./build.sh', 'gecko-update-full']
             self.extra_update_attrs = None
             self.isOSUpdate = False
+        else:
+            self.extra_update_attrs = 'isOsUpdate="true"'
+            self.isOSUpdate = True
+            if update_type == "fota":
+                make_target = "gecko-update-fota"
+            if update_type == "fota:fullimg":
+                make_target = "gecko-update-fota-fullimg"
+            self.make_updates_cmd = ['./build.sh', make_target]
+
         self.package_urls = {}
 
         # We need to create the virtualenv directly (without using an action) in
@@ -310,10 +318,12 @@ class B2GBuild(LocalesMixin, PurgeMixin,
         return os.path.join(self.query_device_outputdir(), 'system', 'b2g', 'application.ini')
 
     def query_marfile_path(self):
-        if self.config.get("update_type", "ota") == "fota":
-            mardir = self.query_device_outputdir()
-        else:
+        # Defaulting to OTA when non defined.
+        update_type = self.config.get("update_type", "ota")
+        if update_type == "ota":
             mardir = "%s/dist/b2g-update" % self.objdir
+        if update_type == "fota" or update_type == "fota:fullimg":
+            mardir = self.query_device_outputdir()
 
         mars = []
         for f in os.listdir(mardir):
@@ -1084,6 +1094,13 @@ class B2GBuild(LocalesMixin, PurgeMixin,
         marfile = self.query_marfile_path()
         # Need to update the base url to point at FTP, or better yet, read post_upload.py output?
         mar_url = self.query_complete_mar_url()
+
+        # To support OTA and FOTA update payload, we cannot rely on the filename
+        # being computed before we get called since we will determine the filename
+        # ourselves. Let's detect when the URL does not ends with ".mar" and in
+        # this case, we append the MAR file we just collected
+        if not mar_url.endswith(".mar"):
+            mar_url = os.path.join(mar_url, os.path.basename(marfile))
 
         # Set other necessary properties for Balrog submission. None need to
         # be passed back to buildbot, so we won't write them to the properties

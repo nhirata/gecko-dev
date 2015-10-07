@@ -21,8 +21,10 @@ config = {
         "BOWER_FLAGS": "--allow-root",
         "B2G_PATH": "%(work_dir)s",
         "GAIA_DISTRIBUTION_DIR": "%(work_dir)s/gaia/distros/spark",
-        "WGET_OPTS": "-c -q"
+        "WGET_OPTS": "-c -q",
+        "B2G_FOTA_FULLIMG_PARTS": "/boot:boot.img /system:system.img /recovery:recovery.img"
     },
+    "update_type": "fota:fullimg",
     "is_automation": True,
     "repo_remote_mappings": {
         'https://android.googlesource.com/': 'https://git.mozilla.org/external/aosp',
