@@ -34,3 +34,11 @@ builds:
         task: tasks/builds/b2g_flame_kk_ota_opt.yml
       debug:
         task: tasks/builds/b2g_flame_kk_ota_debug.yml
+  flame-kk-fota:
+    platforms:
+      - b2g
+    types:
+      opt:
+        task: tasks/builds/b2g_flame_kk_fota_opt.yml
+      debug:
+        task: tasks/builds/b2g_flame_kk_fota_debug.yml
