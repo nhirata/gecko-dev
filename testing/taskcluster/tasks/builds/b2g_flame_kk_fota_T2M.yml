@@ -1,0 +1,39 @@
+$inherits:
+  from: 'tasks/builds/b2g_phone_base.yml'
+  variables:
+    build_name: 'flame-kk-fota'
+    build_type: 'debug'
+task:
+  metadata:
+    name: '[TC] B2G Flame KK FOTA (userdebug)'
+  scopes: 'docker-worker:image:taskclusterprivate/phone-builder:0.99.22'
+  workerType: balrog
+
+  payload:
+    env:
+      TARGET: 'flame-kk'
+      DEBUG: 0
+      VARIANT: userdebug
+      B2G_DEBUG: 0
+      MOZHARNESS_CONFIG: b2g/taskcluster-T2M-fota.py
+      B2G_UPDATE_CHANNEL: '{{b2g_update_channel}}'
+    command:
+      - >
+        checkout-gecko workspace &&
+        cd ./workspace/gecko/testing/taskcluster/scripts/phone-builder &&
+        buildbot_step 'Build' ./build-phone-ota.sh $HOME/workspace
+
+  extra:
+    treeherderEnv:
+      - staging
+    treeherder:
+      symbol: B
+      groupSymbol: Flame-KK-OTA
+      groupName:  Flame KitKat Device Image
+      machine:
+        platform: b2g-device-image
+      collection:
+        debug: true
+    locations:
+      img: 'private/build/flame-kk.zip'
+      mar: 'public/build/b2g-flame-gecko-update.mar'

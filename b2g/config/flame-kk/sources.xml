@@ -16,12 +16,13 @@
   <remote fetch="https://git.mozilla.org/external/linaro" name="linaro"/>
   <!--original fetch url was git://github.com/mozilla/-->
   <remote fetch="https://git.mozilla.org/b2g" name="mozilla"/>
+  <remote fetch="https://github.com/mozilla-b2g/" name="gitmoz">
   <!--original fetch url was https://git.mozilla.org/releases-->
   <remote fetch="https://git.mozilla.org/releases" name="mozillaorg"/>
   <!--
     B2G repositories for all targets
     -->
-  <project name="gaia" path="gaia" remote="mozillaorg" revision="14aefb2519becfa32f31bcc3c9c995693421f19c"/>
+  <project name="gaia" path="gaia" remote="gitmoz" revision="384ebe2e7c7ac368635537c469e19c6837b02ede"/>
   <project name="gonk-misc" path="gonk-misc" remote="b2g" revision="4a962bdab532e18f53e9d2d114c349983262c6b7"/>
   <project name="moztt" path="external/moztt" remote="b2g" revision="ac7e9ae8a24ab4a3f3da801ca53f95f39a32b89f"/>
   <project name="platform_hardware_libhardware_moz" path="hardware/libhardware_moz" remote="b2g" revision="fdf3a143dc777e5f9d33a88373af7ea161d3b440"/>
