@@ -6,7 +6,7 @@ $inherits:
 task:
   metadata:
     name: '[TC] B2G Flame KK FOTA (userdebug)'
-  scopes: 'docker-worker:image:taskclusterprivate/phone-builder:0.99.22'
+  scopes: '[docker-worker:image:taskclusterprivate/phone-builder:0.99.22]'
   workerType: balrog
 
   payload:
