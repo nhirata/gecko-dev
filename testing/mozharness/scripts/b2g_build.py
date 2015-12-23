@@ -668,7 +668,7 @@ class B2GBuild(LocalesMixin, PurgeMixin,
             if update_type == "fota:fullimg":
                 make_target = "gecko-update-fota-fullimg"
 
-            cmd = ['./build.sh', make_target]
+            cmd = ['./build.sh','-j1',make_target]
 
             self.enable_mock()
             retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
