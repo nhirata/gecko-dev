@@ -94,11 +94,14 @@ for ((i=0; $i<$num_files; i=$i+1)); do
   dir=$(dirname "$f")
   mkdir -p "$workdir/$dir"
   $BZIP2 -cz9 "$targetdir/$f" > "$workdir/$f"
+  sleep 10
+
   copy_perm "$targetdir/$f" "$workdir/$f"
 
   targetfiles="$targetfiles \"$f\""
 done
 
+sleep 10
 # Append remove instructions for any dead files.
 notice ""
 notice "Adding file and directory remove instructions from file 'removed-files'"
