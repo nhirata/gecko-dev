@@ -19,5 +19,4 @@ task:
       machine:
         platform: b2g-device-image
     locations:
-      img: 'public/build/aries.zip'
       mar: 'public/build/b2g-aries-gecko-update.mar'
