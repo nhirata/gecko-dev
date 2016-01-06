@@ -20,7 +20,7 @@
         "{workdir}/sources.xml",
         "{objdir}/dist/b2g-update/*.mar",
         "{workdir}/hammerhead.zip",
-        "{workdir}/out/target/product/nexus-5-l/fota-*-update.mar"
+        "{workdir}/out/target/product/nexus-5-l/fota-*-update*.mar"
     ],
     "zip_files": [
         ["{workdir}/out/target/product/hammerhead/*.img", "out/target/product/hammerhead/"],
@@ -40,7 +40,8 @@
         "VARIANT": "userdebug",
         "MOZILLA_OFFICIAL": "1",
         "MOZ_TELEMETRY_REPORTING": "1",
-        "B2G_UPDATE_CHANNEL": "nightly"
+        "B2G_UPDATE_CHANNEL": "nightly",
+        "GAIA_KEYBOARD_LAYOUTS": "en,pt-BR,es,de,fr,pl,zh-Hans-Pinyin,zh-Hant-Zhuyin,en-Dvorak"
     },
     "b2g_manifest": "nexus-5-l.xml",
     "b2g_manifest_intree": true,
