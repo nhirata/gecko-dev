@@ -20,7 +20,7 @@ task:
       B2G_UPDATE_CHANNEL: '{{b2g_update_channel}}'
   extra:
     locations:
-      img: 'public/build/aries.zip'
+      img: 'public/build/hammerhead.zip'
     treeherderEnv:
       - production
       - staging
