@@ -12,7 +12,7 @@
         "{objdir}/dist/b2g-*.crashreporter-symbols.zip",
         "{objdir}/dist/b2g-*.tar.gz",
         "{workdir}/sources.xml",
-        "{workdir}/out/target/product/nexus-5-l/fota-*-update-*.mar"
+        "{workdir}/out/target/product/hammerhead/fota-*-update-*.mar"
     ],
     "public_upload_files": [
         "{objdir}/dist/b2g-*.crashreporter-symbols.zip",
@@ -20,7 +20,8 @@
         "{workdir}/sources.xml",
         "{objdir}/dist/b2g-update/*.mar",
         "{workdir}/hammerhead.zip",
-        "{workdir}/out/target/product/nexus-5-l/fota-*-update.mar"
+        "{workdir}/out/target/product/hammerhead/fota-*-update.mar",
+        "{workdir}/out/target/product/hammerhead/fota-*-update-*.mar"
     ],
     "zip_files": [
         ["{workdir}/out/target/product/hammerhead/*.img", "out/target/product/hammerhead/"],

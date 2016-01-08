@@ -31,8 +31,9 @@ task:
         buildbot_step 'Build' ./build-phone-ota.sh $HOME/workspace
   extra:
     locations:
-      img: 'private/build/nexus-4-kk.zip'
-    treeherderEnv:
+      img: 'public/build/nexus-4-kk.zip'
+      mar: 'public/build/*.mar' 
+   treeherderEnv:
       - staging
     treeherder:
       symbol: B

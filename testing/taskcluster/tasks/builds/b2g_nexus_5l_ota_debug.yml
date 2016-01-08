@@ -23,7 +23,7 @@ task:
       B2G_DEBUG: 0
       TARGET: 'nexus-5-l'
       DEBUG: 0
-      MOZHARNESS_CONFIG: b2g/taskcluster-phone-fota.py
+      MOZHARNESS_CONFIG: b2g/taskcluster-phone-full-fota.py
       B2G_UPDATE_CHANNEL: '{{b2g_update_channel}}'
     command:
       - >
@@ -32,7 +32,8 @@ task:
         buildbot_step 'Build' ./build-phone-ota.sh $HOME/workspace
   extra:
     locations:
-      img: 'private/build/nexus-5-l.zip'
+      img: 'public/build/nexus-5-l.zip'
+      mar: 'public/build/fota-hammerhead-update-fullimg.mar'
     treeherderEnv:
       - staging
     treeherder:

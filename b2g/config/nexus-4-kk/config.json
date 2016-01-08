@@ -20,7 +20,8 @@
         "{workdir}/sources.xml",
         "{objdir}/dist/b2g-update/*.mar",
         "{workdir}/mako.zip",
-        "{workdir}/out/target/product/nexus-4-kk/fota-*-update.mar"
+        "{workdir}/out/target/product/nexus-4-kk/fota-*-update.mar",
+        "{workdir}/out/target/product/nexus-4-kk/fota-*-update-*.mar"
     ],
     "zip_files": [
         ["{workdir}/out/target/product/mako/*.img", "out/target/product/mako/"],
