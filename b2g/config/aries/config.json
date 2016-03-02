@@ -36,6 +36,7 @@
     ],
     "env": {
         "VARIANT": "user",
+        "FOTA_FINGERPRINTS": "Sony/aries/aries:4.4.2/KOT49H/eng.worker.20151130.124658:userdebug/test-keys",
         "MOZILLA_OFFICIAL": "1",
         "MOZ_TELEMETRY_REPORTING": "1",
         "GAIA_KEYBOARD_LAYOUTS": "en,pt-BR,es,de,fr,pl,zh-Hans-Pinyin,zh-Hant-Zhuyin,en-Dvorak"
